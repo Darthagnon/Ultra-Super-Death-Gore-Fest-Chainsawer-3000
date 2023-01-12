@@ -65,7 +65,12 @@ function wesnoth.wml_actions.usdgfc3_die(cfg)
 	local u = units[1].__cfg
 	wesnoth.usdgfc3_gibs(u.x, u.y, 5)
 	local ucode = wesnoth.unit_types[u.type].__cfg
-	local death_code = helper.get_child(ucode, "death")
+	local death_code
+	for i = 1,#ucode do
+		if ucode[i][1] == "death" then
+			death_code = ucode[i][2]
+		end
+	end
 	if not death_code then
 		local anim = {
 			begin = -250,
