@@ -1,3 +1,5 @@
+local helper = wesnoth.require "lua/helper.lua"
+
 wesnoth.wml_actions.event{
 	name="attacker hits" ,
 	id="usdgfc3_hits",
@@ -52,8 +54,39 @@ wesnoth.wml_actions.event{
 	} }
 }
 
+function is_bloodless(u)
+	local resistance = helper.get_child(u, "resistance")
+	local skeleton_score = resistance.fire + resistance.impact + resistance.arcane - resistance.cold - resistance.pierce - resistance.blade
+	local ghost_score = resistance.fire * 2 + resistance.arcane * 2 - resistance.impact - resistance.cold - resistance.pierce - resistance.blade
+
+	local defense = helper.get_child(u, "defense")
+	local average = 0
+	local values = 0
+	for name, value in pairs(defense) do
+		average = average + value
+		values = values + 1
+	end
+	average = average / values
+	local mean_deviation = 0
+	values = 0
+	for name, value in pairs(defense) do
+		mean_deviation = mean_deviation + (average - value) * (average - value)
+		values = values + 1
+	end
+	mean_deviation = math.sqrt(mean_deviation / values)
+	ghost_score = ghost_score - mean_deviation * 5
+	if ghost_score > 0 or skeleton_score > 100 then
+		return true
+	else
+		return false
+	end
+end
+
 function wesnoth.wml_actions.usdgfc3_hit(cfg)
 	local u = wesnoth.get_units(cfg)[1]
+	if is_bloodless(u.__cfg) then
+		return
+	end
 	wesnoth.usdgfc3_gibs(u.x, u.y, 1)
 end
 
@@ -63,6 +96,9 @@ function wesnoth.wml_actions.usdgfc3_die(cfg)
 		return
 	end
 	local u = units[1].__cfg
+	if is_bloodless(u) then
+		return
+	end
 	wesnoth.usdgfc3_gibs(u.x, u.y, 5)
 	local ucode = wesnoth.unit_types[u.type].__cfg
 	local death_code
@@ -123,7 +159,7 @@ function wesnoth.wml_actions.usdgfc3_fix_halo(cfg)
 	local units = wesnoth.get_units(cfg)
 	for i = 1,#units do
 		local u = units[i].__cfg
-		if not u.halo or u.halo == "" or string.find(u.halo, "usdgfc3") then
+		if not is_bloodless(u) and (not u.halo or u.halo == "" or string.find(u.halo, "usdgfc3")) then
 			-- The halo will be changed only if the unit already has one
 			local percentage = (u.hitpoints * 100) / u.max_hitpoints
 			if percentage >= 50 then
@@ -132,7 +168,7 @@ function wesnoth.wml_actions.usdgfc3_fix_halo(cfg)
 				u.halo = "usdgfc3-bleed-light-1.png:100,usdgfc3-bleed-light-2.png:100,usdgfc3-bleed-light-3.png:100,usdgfc3-bleed-light-4.png:100,usdgfc3-bleed-light-5.png:100"
 				wesnoth.usdgfc3_gibs(u.x, u.y, 1)
 			else
-				u.halo = "usdgfc3-bleed-heavy-1.png:100,usdgfc3-heavy-light-2.png:100,usdgfc3-bleed-heavy-3.png:100,usdgfc3-bleed-heavy-4.png:100,usdgfc3-bleed-heavy-5.png:100"
+				u.halo = "usdgfc3-bleed-heavy-1.png:100,usdgfc3-bleed-heavy-2.png:100,usdgfc3-bleed-heavy-3.png:100,usdgfc3-bleed-heavy-4.png:100,usdgfc3-bleed-heavy-5.png:100"
 				wesnoth.usdgfc3_gibs(u.x, u.y, 2)
 			end
 			wesnoth.put_unit(u)
@@ -143,6 +179,9 @@ end
 function wesnoth.wml_actions.usdgfc3_hit_gibs(cfg)
 	local unit = wesnoth.get_units(cfg)[1]
 	local u = unit.__cfg
+	if is_bloodless(u) then
+		return
+	end
 	if not u.halo or u.halo == "" or string.find(u.halo, "usdgfc3") then
 		u.halo = "usdgfc3-hit-gibs-1.png:100,usdgfc3-hit-gibs-2.png:100,usdgfc3-hit-gibs-3.png:100,usdgfc3-hit-gibs-4.png:100,usdgfc3-hit-gibs-5.png:100,usdgfc3-hit-gibs-6.png:100,misc/blank-hex.png:100000"
 		wesnoth.put_unit(u)
